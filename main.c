@@ -10,8 +10,7 @@ int scale_bitmap(
   ALLEGRO_BITMAP *src_bitmap,
   ALLEGRO_BITMAP *dst_bitmap,
   int src_width, int src_height,
-  int dst_width, int dst_height,
-  double *debug, int *debug_int, unsigned char *debug_char);
+  int dst_width, int dst_height);
 
 void showError(char *msg) {
     al_show_native_message_box(
@@ -149,28 +148,16 @@ int main(int argc, char **argv) {
          ALLEGRO_PIXEL_FORMAT_BGR_888,
          ALLEGRO_LOCK_READWRITE);
 
-      // printf("%d %d\n", src_region->pitch, src_region->pixel_size);
-      // printf("%d %d\n", dst_region->pitch, dst_region->pixel_size);
-      // printf("%d %d\n", dst_width, dst_height);
-
-      double debug = 123;
-      int debug_int = 12345;
-      unsigned char debug_char = 12;
-
        scale_bitmap(
          dst_region->data - dst_width * 3 * (dst_height - 1),
          src_region->data - src_width * 3 * (src_height - 1),
          src_width, src_height,
-         dst_width, dst_height,
-         &debug, &debug_int, &debug_char);
-
-       // if (debug < 0)
-        printf("%ff %d %d\n", debug, debug_int, debug_char);
+         dst_width, dst_height);
 
        al_unlock_bitmap(src_bitmap);
        al_unlock_bitmap(dst_bitmap);
 
-       al_clear_to_color(al_map_rgb(0, 0, 255));
+       al_clear_to_color(al_map_rgb(255, 255, 255));
        al_draw_bitmap(dst_bitmap,0,0,0);
 
        al_flip_display();

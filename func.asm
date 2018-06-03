@@ -118,10 +118,6 @@ processing:
   add rax, 1
   mov [rbp-120], rax      ; right = (int)x + 1
 
-  ; mov rbx, [rbp-120]
-  ; add rbx, 1
-  ; mov [rbp-120], rbx
-
   cvttsd2si rax, [rbp-152]
   mov [rbp-128], rax      ; bottom = (int)y
   add rax, 1
@@ -156,16 +152,6 @@ not_edge_top:
   cvtsi2sd xmm1, [rbp-128]  ; xmm1 = bottom
   subsd xmm0, xmm1
   movsd [rbp-168], xmm0  ; b = y - bottom
-
-  ; !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  ; mov rax, [rbp+16]
-  ; movsd xmm0, [rbp-152]
-  ; movsd [rax], xmm0
-  ;
-  ; mov rax, [rbp+24]
-  ; mov rbx, [rbp-120]
-  ; mov [rax], ebx
-  ; !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   ; read pixels
   ; ========================================================
@@ -226,17 +212,6 @@ not_edge_top:
   call interpolate
   mov r10, rax
 
-  ; !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  mov rax, [rbp+16]
-  ; movsd xmm0, [rbp-152]
-  movsd [rax], xmm0
-
-  mov rax, [rbp+32]
-  ; mov rbx, [rbp-120]
-  mov [rax], r10b
-  ; !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-
   mov rax, QWORD 0
   mov al, [rbp-79]
   mov rdi, rax       ; F_00 = left_top.G
@@ -278,14 +253,9 @@ not_edge_top:
   ; ========================================================
   mov rax, [rbp-8]  ; rax = dst_ptr
 
-  ;mov bl, bl  ; RED
-  mov [rax], r10b
-
-  ;mov bl, rcx  ; GREEN
-  mov [rax+1], r11b
-
-  ;mov bl, rdx  ; BLUE
-  mov [rax+2], r12b
+  mov [rax], r10b    ; RED
+  mov [rax+1], r11b ; GREEN
+  mov [rax+2], r12b ; BLUE
 
   add rax, 3        ; dst_ptr += 3
   mov [rbp-8], rax
@@ -389,18 +359,18 @@ interpolate:
   ; =======================================
   mov rax, 1
   cvtsi2sd xmm0, rax
-  subsd xmm0, [rbp-40] ; 1-a
+  subsd xmm0, [rbp-40]   ; 1-a
   cvtsi2sd xmm1, [rbp-8]
-  mulsd xmm0, xmm1  ; (1-a)*F_00
-  movsd xmm1, xmm0     ; xmm1 = (1-a)*F_00
+  mulsd xmm0, xmm1       ; (1-a)*F_00
+  movsd xmm1, xmm0       ; xmm1 = (1-a)*F_00
 
-  movsd xmm0, [rbp-40] ; a
+  movsd xmm0, [rbp-40]   ; a
   cvtsi2sd xmm2, [rbp-16]
-  mulsd xmm0, xmm2 ; a*F_10
-  movsd xmm2, xmm0     ; xmm2 = a*F_10
+  mulsd xmm0, xmm2       ; a*F_10
+  movsd xmm2, xmm0       ; xmm2 = a*F_10
 
-  addsd xmm1, xmm2     ; xmm1 = (1-a)*F_00 + a*F_10
-  movsd [rbp-56], xmm1 ; F_a0 = (1-a)*F_00 + a*F_10
+  addsd xmm1, xmm2       ; xmm1 = (1-a)*F_00 + a*F_10
+  movsd [rbp-56], xmm1   ; F_a0 = (1-a)*F_00 + a*F_10
 
   ; computing F_a1
   ; =======================================
@@ -437,7 +407,7 @@ interpolate:
   movsd [rbp-72], xmm1  ; F_ab = b*F_a0 + (1-b)*F_a1
 
   movsd xmm0, [rbp-72]
-  cvtsd2si rax, xmm0   ; return F_ab
+  cvtsd2si rax, xmm0    ; return F_ab
 
 interpolate_exit:
   mov rsp, rbp
