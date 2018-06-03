@@ -26,13 +26,13 @@ scale_bitmap:
   ; =======================================
 
 	mov rax, rdx
-	mul rcx      ; rax = width * height
+	mul rcx      ; rax = dst_width * dst_height
 	mov rcx, 3
 	mul rcx      ; rax = width * height * 3
 
   ; local variables
   ; =================================================================
-  push rax ; src_size [rbp-56] = width * height * 3
+  push rax ; dst_size [rbp-56] = width * height * 3
 	push 0   ; i [rbp-64] = 0
   push 0   ; j [rbp-72] = 0
 
@@ -58,6 +58,10 @@ scale_bitmap:
   push 0   ; counter [rbp-192]
   ; =================================================================
 
+  mov rax, [rbp-8];
+  add rax, 3
+  mov [rbp-8], rax
+
   cvtsi2sd xmm0, [rbp-24] ; xmm0 = (double) src_width
   cvtsi2sd xmm1, [rbp-40] ; xmm1 = (double) dst_width
   divsd xmm0, xmm1
@@ -69,26 +73,62 @@ scale_bitmap:
   movsd [rbp-184], xmm0   ; ratio_y = (double)src_height / (double)dst_height
 
 loop:
+  ; loop checking
+  ; ========================================================
+  mov rax, [rbp-40]   ; dst_width
+  sub rax, 1          ; dst_width-1
+  cmp [rbp-64], rax   ; cmp i and dst_width-1
+  jge not_middle_line ; if (i >= dst_width-1) jump
+  mov rax, [rbp-64]
+  add rax, 1             ; i++
+  mov [rbp-64], rax
+  jmp processing
+
+not_middle_line:
+  mov rax, [rbp-48]
+  sub rax, 1
+  cmp [rbp-72], rax     ; cmp j and dst_height
+  jge end               ; if (j >= dst_height) jump
+  mov [rbp-64], DWORD 0 ; i = 0
+  mov rax, [rbp-72]
+  add rax, 1              ; j++
+  mov [rbp-72], rax
+
+processing:
+  ; compute x, y
+  ; ========================================================
   cvtsi2sd xmm0, [rbp-64] ; xmm0 = (double)i
   movsd xmm1, [rbp-176]   ; xmm1 = ratio_x
   mulsd xmm0, xmm1
-  movsd [rbp-144]         ; x = i * ratio_x
+  movsd [rbp-144], xmm0   ; x = i * ratio_x
 
   cvtsi2sd xmm0, [rbp-72] ; xmm0 = (double)j
   movsd xmm1, [rbp-184]   ; xmm1 = ratio_y
   mulsd xmm0, xmm1
-  movsd [rbp-152]         ; y = j * ratio_y
+  movsd [rbp-152], xmm0   ; y = j * ratio_y
 
-  cvttsd2si rax, [rbp-144]
+  ; compute left, right, top, bottom
+  ; ========================================================
+  movsd xmm0, [rbp-144]
+  cvttsd2si rax, xmm0
   mov [rbp-112], rax      ; left = (int)x
+
+  movsd xmm0, [rbp-144]
+  cvttsd2si rax, xmm0
   add rax, 1
   mov [rbp-120], rax      ; right = (int)x + 1
+
+  ; mov rbx, [rbp-120]
+  ; add rbx, 1
+  ; mov [rbp-120], rbx
 
   cvttsd2si rax, [rbp-152]
   mov [rbp-128], rax      ; bottom = (int)y
   add rax, 1
   mov [rbp-136], rax      ; top = (int)y + 1
 
+  ; check edges right and top
+  ; ========================================================
   mov rax, [rbp-120]  ; rax = right
   mov rbx, [rbp-24]   ; rbx = src_width
   cmp rax, rbx
@@ -105,34 +145,152 @@ not_edge_right:
   mov [rbp-136], rax  ; top = bottom
 
 not_edge_top:
-  movsd xmm0, [rbp-144] ; xmm0 = x
-  movsd xmm1, [rbp-112] ; xmm1 = left
+  ; compute a, b
+  ; ========================================================
+  movsd xmm0, [rbp-144]  ; xmm0 = x
+  cvtsi2sd xmm1, [rbp-112]  ; xmm1 = left
   subsd xmm0, xmm1
-  movsd [rbp-160], xmm0 ; a = x - left
+  movsd [rbp-160], xmm0  ; a = x - left
 
-  movsd xmm0, [rbp-152] ; xmm0 = y
-  movsd xmm1, [rbp-128] ; xmm1 = bottom
+  movsd xmm0, [rbp-152]  ; xmm0 = y
+  cvtsi2sd xmm1, [rbp-128]  ; xmm1 = bottom
   subsd xmm0, xmm1
-  movsd [rbp-160], xmm0 ; b = y - bottom
+  movsd [rbp-168], xmm0  ; b = y - bottom
 
-  ; mov rax, [rbp-16] ; bl = *src_ptr
-	; mov bl, [rax]
+  ; !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ; mov rax, [rbp+16]
+  ; movsd xmm0, [rbp-152]
+  ; movsd [rax], xmm0
   ;
-  ; inc rax           ; src_ptr++
-  ; mov [rbp-16], rax
-  ;
-  ; mov rax, [rbp-8]  ; *dst_ptr = bl
-	; mov [rax], bl
-  ;
-  ; inc rax           ; dst_ptr++
-  ; mov [rbp-8], rax
-  ;
-  ; mov rax, [rbp-192] ; counter++
-	; inc rax
-  ; mov [rbp-192], rax
-  ;
-	; cmp rax, [rbp-56] ; while (counter < src_size)
-	; jl loop
+  ; mov rax, [rbp+24]
+  ; mov rbx, [rbp-120]
+  ; mov [rax], ebx
+  ; !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  ; read pixels
+  ; ========================================================
+  mov rax, rbp
+  sub rax, 80        ; rax = rbp-80 (left_top)
+  mov rdi, rax       ; pixel_buffer = left_top
+  mov rsi, [rbp-112] ; x = left
+  mov rdx, [rbp-136] ; y = top
+  mov rcx, [rbp-24]  ; src_width = src_width
+  mov r8, [rbp-16]   ; src_ptr = src_ptr
+  call read_pixel
+
+  mov rax, rbp
+  sub rax, 88        ; rax = rbp-88 (right_top)
+  mov rdi, rax       ; pixel_buffer = right_top
+  mov rsi, [rbp-120] ; x = right
+  mov rdx, [rbp-136] ; y = top
+  mov rcx, [rbp-24]  ; src_width = src_width
+  mov r8, [rbp-16]   ; src_ptr = src_ptr
+  call read_pixel
+
+  mov rax, rbp
+  sub rax, 96        ; rax = rbp-98 (left_bottom)
+  mov rdi, rax       ; pixel_buffer = left_bottom
+  mov rsi, [rbp-112] ; x = left
+  mov rdx, [rbp-128] ; y = bottom
+  mov rcx, [rbp-24]  ; src_width = src_width
+  mov r8, [rbp-16]   ; src_ptr = src_ptr
+  call read_pixel
+
+  mov rax, rbp
+  sub rax, 104       ; rax = rbp-104 (right_bottom)
+  mov rdi, rax       ; pixel_buffer = right_bottom
+  mov rsi, [rbp-120] ; x = right
+  mov rdx, [rbp-128] ; y = bottom
+  mov rcx, [rbp-24]  ; src_width = src_width
+  mov r8, [rbp-16]   ; src_ptr = src_ptr
+  call read_pixel
+
+  ; interpolation
+  ; ========================================================
+  mov rax, QWORD 0
+  mov al, [rbp-80]
+  mov rdi, rax       ; F_00 = left_top.R
+
+  mov al, [rbp-88]
+  mov rsi, rax       ; F_10 = right_top.R
+
+  mov al, [rbp-96]
+  mov rdx, rax       ; F_01 = left_bottom.R
+
+  mov al, [rbp-104]
+  mov rcx, rax       ; F_11 = right_bottom.R
+
+  mov r8, [rbp-160]  ; a = a
+  mov r9, [rbp-168]  ; b = b
+
+  call interpolate
+  mov r10, rax
+
+  ; !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  mov rax, [rbp+16]
+  ; movsd xmm0, [rbp-152]
+  movsd [rax], xmm0
+
+  mov rax, [rbp+32]
+  ; mov rbx, [rbp-120]
+  mov [rax], r10b
+  ; !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+  mov rax, QWORD 0
+  mov al, [rbp-79]
+  mov rdi, rax       ; F_00 = left_top.G
+
+  mov al, [rbp-87]
+  mov rsi, rax       ; F_10 = right_top.G
+
+  mov al, [rbp-95]
+  mov rdx, rax       ; F_01 = left_bottom.G
+
+  mov al, [rbp-103]
+  mov rcx, rax       ; F_11 = right_bottom.G
+
+  mov r8, [rbp-160]  ; a = a
+  mov r9, [rbp-168]  ; b = b
+  call interpolate
+  mov r11, rax
+
+
+  mov rax, QWORD 0
+  mov al, [rbp-78]
+  mov rdi, rax        ; F_00 = left_top.B
+
+  mov al, [rbp-86]
+  mov rsi, rax        ; F_10 = right_top.B
+
+  mov al, [rbp-94]
+  mov rdx, rax        ; F_01 = left_bottom.B
+
+  mov al, [rbp-102]
+  mov rcx, rax        ; F_11 = right_bottom.B
+
+  mov r8, [rbp-160]  ; a = a
+  mov r9, [rbp-168]  ; b = b
+  call interpolate
+  mov r12, rax
+
+  ; save to output bitmap
+  ; ========================================================
+  mov rax, [rbp-8]  ; rax = dst_ptr
+
+  ;mov bl, bl  ; RED
+  mov [rax], r10b
+
+  ;mov bl, rcx  ; GREEN
+  mov [rax+1], r11b
+
+  ;mov bl, rdx  ; BLUE
+  mov [rax+2], r12b
+
+  add rax, 3        ; dst_ptr += 3
+  mov [rbp-8], rax
+
+  jmp loop
 
 end:
   mov rsp, rbp
@@ -157,20 +315,22 @@ read_pixel:
   push rdi ; pixel_buffer [rbp-8]
   push rsi ; x [rbp-16]
   push rdx ; y [rbp-24]
-  push rcx ; src_width  [rbp-32]
-  push r8  ; src_ptr    [rbp-40]
+  push rcx ; src_width [rbp-32]
+  push r8  ; src_ptr   [rbp-40]
   ; =============================
 
   mov rax, [rbp-24] ; y
   mov rbx, [rbp-32] ; src_width
   mul rbx           ; y*src_width
 
-  mov rax, 3
+  mov rbx, 3
   mul rbx           ; y*src_width*3
+  mov rbx, rax
 
   mov rax, 3
   mov rcx, [rbp-16] ; x
   mul rcx           ; x*3
+  mov rcx, rax
 
   add rbx, rcx      ; y*src_width*3 + x*3
 
@@ -179,46 +339,107 @@ read_pixel:
   push rbx ; pixel_number [rbp-48] = y*src_width*3 + x*3
   ; ====================================================
 
-  mov rbx, [rbp-40] ; src_ptr
-  add rbx, [rbp-48] ; src_ptr + pixel_number
+  mov rbx, [rbp-40] ; rbx = src_ptr
+  mov rcx, [rbp-48]
+  add rbx, rcx      ; rbx = src_ptr + pixel_number
 
-  mov rax, [rbx]    ; read BLUE
-  mov [rbp-8], rax  ; pixel_buffer[0] = BLUE
+  mov rcx, [rbp-8]  ; rcx = pixel_buffer
 
-  mov rax, [rbx+1]  ; read GREEN
-  mov [rbp-8], rax  ; pixel_buffer[1] = GREEN
+  mov al, [rbx]     ; read BLUE
+  mov [rcx], al     ; pixel_buffer[0] = BLUE
 
-  mov rax, [rbx+2]  ; read RED
-  mov [rbp-8], rax  ; pixel_buffer[2] = RED
+  mov al, [rbx+1]   ; read GREEN
+  mov [rcx+1], al   ; pixel_buffer[1] = GREEN
 
-read_pixel_exit:
+  mov al, [rbx+2]   ; read RED
+  mov [rcx+2], al   ; pixel_buffer[2] = RED
+
   mov rsp, rbp
   pop rbp
   ret
 
-;============================================
-; STOS
-;============================================
-;
-; wieksze adresy
-;
-;  |                             |
-;  | ...                         |
-;  -------------------------------
-;  | parametr funkcji            | RBP+16
-;  -------------------------------
-;  | adres powrotu               | RBP+8
-;  -------------------------------
-;  | zachowane rbp               | RBP, RSP
-;  -------------------------------
-;  | ... tu ew. zmienne lokalne  | RBP-8n
-;  |                             |
-;
-; \/                         \/
-; \/ w ta strone rosnie stos \/
-; \/                         \/
-;
-; mniejsze adresy
-;
-;
-;============================================
+interpolate:
+  ; arguments
+  ; ============
+  ; rdi = F_00
+  ; rsi = F_10
+  ; rdx = F_01
+  ; rcx = F_11
+  ; r8 = a
+  ; r9 = b
+  ; ============
+
+  push rbp
+  mov rbp, rsp
+
+  ; local variables
+  ; ======================
+  push rdi ; F_00 [rbp-8]
+  push rsi ; F_10 [rbp-16]
+  push rdx ; F_01 [rbp-24]
+  push rcx ; F_11 [rbp-32]
+  push r8 ; a [rbp-40]
+  push r9 ; b [rbp-48]
+  push 0 ; F_a0 [rbp-56]
+  push 0 ; F_a1 [rbp-64]
+  push 0 ; F_ab [rbp-72]
+  ; ======================
+
+  ; computing F_a0
+  ; =======================================
+  mov rax, 1
+  cvtsi2sd xmm0, rax
+  subsd xmm0, [rbp-40] ; 1-a
+  cvtsi2sd xmm1, [rbp-8]
+  mulsd xmm0, xmm1  ; (1-a)*F_00
+  movsd xmm1, xmm0     ; xmm1 = (1-a)*F_00
+
+  movsd xmm0, [rbp-40] ; a
+  cvtsi2sd xmm2, [rbp-16]
+  mulsd xmm0, xmm2 ; a*F_10
+  movsd xmm2, xmm0     ; xmm2 = a*F_10
+
+  addsd xmm1, xmm2     ; xmm1 = (1-a)*F_00 + a*F_10
+  movsd [rbp-56], xmm1 ; F_a0 = (1-a)*F_00 + a*F_10
+
+  ; computing F_a1
+  ; =======================================
+  mov rax, 1
+  cvtsi2sd xmm0, rax
+  subsd xmm0, [rbp-40]   ; 1-a
+  cvtsi2sd xmm1, [rbp-24]
+  mulsd xmm0, xmm1       ; (1-a)*F_01
+  movsd xmm1, xmm0       ; xmm1 = (1-a)*F_01
+
+  movsd xmm0, [rbp-40]   ; a
+  cvtsi2sd xmm2, [rbp-32]
+  mulsd xmm0, xmm2       ; a*F_11
+  movsd xmm2, xmm0       ; xmm2 = a*F_11
+
+  addsd xmm1, xmm2       ; xmm1 = (1-a)*F_01 + a*F_11
+  movsd [rbp-64], xmm1   ; F_a1 = (1-a)*F_01 + a*F_11
+
+  ; computing F_ab
+  ; =======================================
+  movsd xmm0, [rbp-48]  ; b
+  movsd xmm1, [rbp-56]
+  mulsd xmm0, xmm1      ; b*F_a0
+  movsd xmm1, xmm0      ; xmm1 = b*F_a0
+
+  mov rax, 1
+  cvtsi2sd xmm0, rax
+  subsd xmm0, [rbp-48]  ; 1-b
+  movsd xmm2, [rbp-64]
+  mulsd xmm0, xmm2      ; (1-b)*F_a1
+  movsd xmm2, xmm0      ; xmm2 = (1-b)*F_a1
+
+  addsd xmm1, xmm2      ; xmm1 = b*F_a0 + (1-b)*F_a1
+  movsd [rbp-72], xmm1  ; F_ab = b*F_a0 + (1-b)*F_a1
+
+  movsd xmm0, [rbp-72]
+  cvtsd2si rax, xmm0   ; return F_ab
+
+interpolate_exit:
+  mov rsp, rbp
+  pop rbp
+  ret
