@@ -80,7 +80,7 @@ loop:
   cmp [rbp-64], rax   ; cmp i and dst_width-1
   jge not_middle_line ; if (i >= dst_width-1) jump
   mov rax, [rbp-64]
-  add rax, 1             ; i++
+  add rax, 1          ; i++
   mov [rbp-64], rax
   jmp processing
 
@@ -91,7 +91,7 @@ not_middle_line:
   jge end               ; if (j >= dst_height) jump
   mov [rbp-64], DWORD 0 ; i = 0
   mov rax, [rbp-72]
-  add rax, 1              ; j++
+  add rax, 1            ; j++
   mov [rbp-72], rax
 
 processing:
@@ -211,6 +211,7 @@ not_edge_top:
 
   call interpolate
   mov r10, rax
+  
 
   mov rax, QWORD 0
   mov al, [rbp-79]
@@ -253,7 +254,7 @@ not_edge_top:
   ; ========================================================
   mov rax, [rbp-8]  ; rax = dst_ptr
 
-  mov [rax], r10b    ; RED
+  mov [rax], r10b   ; RED
   mov [rax+1], r11b ; GREEN
   mov [rax+2], r12b ; BLUE
 

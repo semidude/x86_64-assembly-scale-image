@@ -70,7 +70,7 @@ int main(int argc, char **argv) {
          dst_bitmap = al_create_bitmap(dst_width, dst_height);
        }
 
-       if (key[UP]) {
+       if (key[UP] && dst_height > 5) {
          dst_height -= 5;
          al_destroy_bitmap(dst_bitmap);
          dst_bitmap = al_create_bitmap(dst_width, dst_height);
@@ -82,7 +82,7 @@ int main(int argc, char **argv) {
          dst_bitmap = al_create_bitmap(dst_width, dst_height);
        }
 
-       if (key[LEFT]) {
+       if (key[LEFT] && dst_width > 5) {
          dst_width -= 5;
          al_destroy_bitmap(dst_bitmap);
          dst_bitmap = al_create_bitmap(dst_width, dst_height);
