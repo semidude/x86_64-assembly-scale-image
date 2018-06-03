@@ -10,7 +10,7 @@ scale_bitmap:
 	; rcx = src_height
   ; r8 = dst_width
   ; r9 = dst_height
-	; =================
+  ; =================
 
   push rbp
   mov rbp, rsp
@@ -211,7 +211,7 @@ not_edge_top:
 
   call interpolate
   mov r10, rax
-  
+
 
   mov rax, QWORD 0
   mov al, [rbp-79]
@@ -362,13 +362,11 @@ interpolate:
   cvtsi2sd xmm0, rax
   subsd xmm0, [rbp-40]   ; 1-a
   cvtsi2sd xmm1, [rbp-8]
-  mulsd xmm0, xmm1       ; (1-a)*F_00
-  movsd xmm1, xmm0       ; xmm1 = (1-a)*F_00
+  mulsd xmm1, xmm0       ; xmm1 = (1-a)*F_00
 
   movsd xmm0, [rbp-40]   ; a
   cvtsi2sd xmm2, [rbp-16]
-  mulsd xmm0, xmm2       ; a*F_10
-  movsd xmm2, xmm0       ; xmm2 = a*F_10
+  mulsd xmm2, xmm0       ; xmm2 = a*F_10
 
   addsd xmm1, xmm2       ; xmm1 = (1-a)*F_00 + a*F_10
   movsd [rbp-56], xmm1   ; F_a0 = (1-a)*F_00 + a*F_10
@@ -379,13 +377,11 @@ interpolate:
   cvtsi2sd xmm0, rax
   subsd xmm0, [rbp-40]   ; 1-a
   cvtsi2sd xmm1, [rbp-24]
-  mulsd xmm0, xmm1       ; (1-a)*F_01
-  movsd xmm1, xmm0       ; xmm1 = (1-a)*F_01
+  mulsd xmm1, xmm0       ; xmm1 = (1-a)*F_01
 
   movsd xmm0, [rbp-40]   ; a
   cvtsi2sd xmm2, [rbp-32]
-  mulsd xmm0, xmm2       ; a*F_11
-  movsd xmm2, xmm0       ; xmm2 = a*F_11
+  mulsd xmm2, xmm0       ; xmm2 = a*F_11
 
   addsd xmm1, xmm2       ; xmm1 = (1-a)*F_01 + a*F_11
   movsd [rbp-64], xmm1   ; F_a1 = (1-a)*F_01 + a*F_11
@@ -394,15 +390,13 @@ interpolate:
   ; =======================================
   movsd xmm0, [rbp-48]  ; b
   movsd xmm1, [rbp-56]
-  mulsd xmm0, xmm1      ; b*F_a0
-  movsd xmm1, xmm0      ; xmm1 = b*F_a0
+  mulsd xmm1, xmm0      ; xmm1 = b*F_a0
 
   mov rax, 1
   cvtsi2sd xmm0, rax
   subsd xmm0, [rbp-48]  ; 1-b
   movsd xmm2, [rbp-64]
-  mulsd xmm0, xmm2      ; (1-b)*F_a1
-  movsd xmm2, xmm0      ; xmm2 = (1-b)*F_a1
+  mulsd xmm2, xmm0      ; xmm2 = (1-b)*F_a1
 
   addsd xmm1, xmm2      ; xmm1 = b*F_a0 + (1-b)*F_a1
   movsd [rbp-72], xmm1  ; F_ab = b*F_a0 + (1-b)*F_a1
@@ -410,7 +404,6 @@ interpolate:
   movsd xmm0, [rbp-72]
   cvtsd2si rax, xmm0    ; return F_ab
 
-interpolate_exit:
   mov rsp, rbp
   pop rbp
   ret

@@ -14,14 +14,14 @@ main32.o: main.c
 func32.o: func.asm
 	$(ASM) $(AFLAGS32) func.asm -o func32.o
 32: main32.o func32.o
-	$(CC) $(CFLAGS32) main32.o func32.o -o result $(LIBS)
+	$(CC) $(CFLAGS32) main32.o func32.o -o result.out $(LIBS)
 
 main64.o: main.c
 	$(CC) $(CFLAGS64) -c main.c -o main64.o
 func64.o: func.asm
 	$(ASM) $(AFLAGS64) func.asm -o func64.o
 64: main64.o func64.o
-	$(CC) $(CFLAGS64) main64.o func64.o -o result $(LIBS)
+	$(CC) $(CFLAGS64) main64.o func64.o -o result.out $(LIBS)
 
 clean:
 	rm *.o
