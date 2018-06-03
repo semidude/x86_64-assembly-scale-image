@@ -3,11 +3,11 @@ global  scale_bitmap
 
 scale_bitmap:
   ; arguments
-	; =================
-	; rdi = &dst_bitmap
-	; rsi = &src_bitmap
-	; rdx = src_width
-	; rcx = src_height
+  ; =================
+  ; rdi = &dst_bitmap
+  ; rsi = &src_bitmap
+  ; rdx = src_width
+  ; rcx = src_height
   ; r8 = dst_width
   ; r9 = dst_height
   ; =================
@@ -211,7 +211,7 @@ not_edge_top:
 
   call interpolate
   mov r10, rax
-  
+
 
 
   mov rax, QWORD 0
