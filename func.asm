@@ -211,6 +211,7 @@ not_edge_top:
 
   call interpolate
   mov r10, rax
+  
 
 
   mov rax, QWORD 0
